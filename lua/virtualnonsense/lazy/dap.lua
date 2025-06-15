@@ -43,10 +43,10 @@ return {
             vim.keymap.set("n", "<F10>", dap.step_over, { desc = "Debug: Step Over" })
             vim.keymap.set("n", "<F11>", dap.step_into, { desc = "Debug: Step Into" })
             vim.keymap.set("n", "<F12>", dap.step_out, { desc = "Debug: Step Out" })
-            vim.keymap.set("n", "<leader>b", dap.toggle_breakpoint, { desc = "Debug: Toggle Breakpoint" })
-            vim.keymap.set("n", "<leader>B", function()
-                dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
-            end, { desc = "Debug: Set Conditional Breakpoint" })
+            vim.keymap.set("n", "<F7>", dap.toggle_breakpoint, { desc = "Debug: Toggle Breakpoint" })
+            vim.keymap.set("n", "<c-F7>", function()
+               dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
+           end, { desc = "Debug: Set Conditional Breakpoint" })
         end
     },
 
@@ -151,13 +151,18 @@ return {
         config = function()
             require("mason-nvim-dap").setup({
                 ensure_installed = {
-                    "delve",
+                    "delve", -- go
+                    "codelldb", -- rust / c / c++
+                    "debugpy", -- python
                 },
                 automatic_installation = true,
                 handlers = {
+                    -- fallback
                     function(config)
                         require("mason-nvim-dap").default_setup(config)
                     end,
+
+                    -- go
                     delve = function(config)
                         table.insert(config.configurations, 1, {
                             args = function() return vim.split(vim.fn.input("args> "), " ") end,
@@ -175,6 +180,43 @@ return {
                             program = "${file}",
                             outputMode = "remote",
                         })
+                        require("mason-nvim-dap").default_setup(config)
+                    end,
+                    -- Rust: codelldb
+                    codelldb = function(config)
+                        table.insert(config.configurations, 1, {
+                            type = "codelldb",
+                            name = "Debug executable",
+                            request = "launch",
+                            program = function()
+                                return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/target/debug/", "file")
+                            end,
+                            cwd = "${workspaceFolder}",
+                            stopOnEntry = false,
+                            args = function()
+                                return vim.split(vim.fn.input("args> "), " ")
+                            end,
+                            runInTerminal = false,
+                        })
+
+                        require("mason-nvim-dap").default_setup(config)
+                    end,
+
+                    -- Python: debugpy
+                    debugpy = function(config)
+                        table.insert(config.configurations, 1, {
+                            type = "python",
+                            request = "launch",
+                            name = "Launch file",
+                            program = "${file}",
+                            pythonPath = function()
+                                return vim.fn.exepath("python3") or "python"
+                            end,
+                            args = function()
+                                return vim.split(vim.fn.input("args> "), " ")
+                            end,
+                        })
+
                         require("mason-nvim-dap").default_setup(config)
                     end,
                 },
